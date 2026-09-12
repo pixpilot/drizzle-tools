@@ -3,6 +3,8 @@ packages:
   - 'tooling/**'
 
 catalogs:
+  prod:
+    'drizzle-orm': ^0.45.2
   dev:
     '@pixpilot/dev-config': ^3.20.0
     '@types/node': ^25.6.2
@@ -17,4 +19,4 @@ catalogs:
     unrun: ^0.3.0
 
 overrides:
-    '@types/node': catalog:dev
+  '@types/node': catalog:dev

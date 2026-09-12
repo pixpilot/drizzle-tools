@@ -1,4 +1,4 @@
-# Contributing to <projectName>
+# Contributing to Drizzle Tools
 
 Thank you for your interest in contributing! 🎉
 
