@@ -35,6 +35,10 @@ pnpm run gen:package
 
 ## 📦 Packages
 
+### [drizzle-pg](./packages/drizzle-pg/README.md)
+
+PostgreSQL adapter utilities for Drizzle ORM  
+
 ### [drizzle-supabase](./packages/drizzle-supabase/README.md)
 
 Drizzle ORM integration for Supabase
