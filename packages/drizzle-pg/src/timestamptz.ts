@@ -2,7 +2,6 @@ import { timestamp } from 'drizzle-orm/pg-core';
 
 type TimestampConfig = Record<string, unknown>;
 
-
 /**
  * `timestamp` that always carries a timezone.
  *
