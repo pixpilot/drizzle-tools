@@ -35,7 +35,10 @@ pnpm run gen:package
 
 ## 📦 Packages
 
-<!-- List your packages here -->
+### [drizzle-supabase](./packages/drizzle-supabase/README.md)
+
+Drizzle ORM integration for Supabase
+
 
 ## 🚢 Releases
 
