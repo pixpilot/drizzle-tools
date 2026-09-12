@@ -8,7 +8,7 @@ catalogs:
     'drizzle-kit': ^0.31.10
     'drizzle-orm': ^0.45.2
   dev:
-    '@pixpilot/dev-config': ^3.20.0
+    '@pixpilot/dev-config': ^3.22.0
     '@types/node': ^25.6.2
     '@vitest/coverage-v8': ^4.1.5
     '@vitest/ui': ^4.1.5
