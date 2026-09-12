@@ -1,7 +1,7 @@
 {
   "name": "@pixpilot/drizzle-test-pglite",
   "type": "module",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "packageManager": "pnpm@10.17.0",
   "description": "A test package for drizzle with pglite",
   "author": "Mo Doaie <m.doaie@hotmail.com>",
