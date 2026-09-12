@@ -1,12 +1,12 @@
 import makeConfig from '@pixpilot/eslint-config';
 
 /**
- * @type {ReturnType<typeof makeConfig>}
+ * @type {Awaited<ReturnType<typeof makeConfig>>}
  */
-const baseConfig = makeConfig({
+// eslint-disable-next-line antfu/no-top-level-await
+const baseConfig = await makeConfig({
   pnpm: false,
   turbo: true,
 });
 
-// eslint-disable-next-line antfu/no-top-level-await
-export default await baseConfig;
+export default baseConfig;

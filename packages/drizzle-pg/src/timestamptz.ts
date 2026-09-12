@@ -2,12 +2,6 @@ import { timestamp } from 'drizzle-orm/pg-core';
 
 type TimestampConfig = Record<string, unknown>;
 
-function withTimezone(config?: TimestampConfig) {
-  return {
-    ...(config ?? {}),
-    withTimezone: true,
-  };
-}
 
 /**
  * `timestamp` that always carries a timezone.
@@ -22,8 +16,14 @@ export const timestamptz = ((
   config?: TimestampConfig,
 ) => {
   if (typeof nameOrConfig === 'string') {
-    return timestamp(nameOrConfig, withTimezone(config));
+    return timestamp(nameOrConfig, {
+      ...(config ?? {}),
+      withTimezone: true,
+    });
   }
 
-  return timestamp(withTimezone(nameOrConfig));
+  return timestamp({
+    ...(nameOrConfig ?? {}),
+    withTimezone: true,
+  });
 }) as typeof timestamp;

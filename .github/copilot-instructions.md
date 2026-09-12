@@ -11,7 +11,7 @@
 
 This project uses Vitest for testing.
 
-# File Naming Conventions
+## File Naming Conventions
 
 ## JavaScript/TypeScript
 

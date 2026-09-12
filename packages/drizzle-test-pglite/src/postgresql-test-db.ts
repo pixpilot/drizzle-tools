@@ -1,5 +1,4 @@
 /* eslint-disable no-await-in-loop */
-/* eslint-disable no-continue */
 import type { PGlite } from '@electric-sql/pglite';
 
 import { Buffer } from 'node:buffer';

@@ -8,17 +8,17 @@ catalogs:
     'drizzle-kit': ^0.31.10
     'drizzle-orm': ^0.45.2
   dev:
-    '@pixpilot/dev-config': ^3.20.0
-    '@types/node': ^25.6.2
-    '@vitest/coverage-v8': ^4.1.5
-    '@vitest/ui': ^4.1.5
-    eslint: ^9.39.4
+    '@pixpilot/dev-config': ^3.22.0
+    '@types/node': ^26.5.1
+    '@vitest/coverage-v8': ^5.0.0
+    '@vitest/ui': ^5.0.0
+    eslint: ^10.10.0
     glob: ^13.0.6
-    prettier: ^3.8.3
-    tsdown: ^0.22.0
-    typescript: ^5.9.3
-    vitest: ^4.1.5
-    unrun: ^0.3.0
+    prettier: ^3.9.6
+    tsdown: ^0.23.0
+    typescript: ^6.0.3
+    vitest: ^5.0.0
+    unrun: ^0.3.1
 
 overrides:
   '@types/node': catalog:dev
