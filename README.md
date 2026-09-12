@@ -43,6 +43,10 @@ PostgreSQL adapter utilities for Drizzle ORM
 
 Drizzle ORM integration for Supabase
 
+### [drizzle-test-pglite](./packages/drizzle-test-pglite/README.md)
+
+A test package for drizzle with pglite
+
 
 ## 🚢 Releases
 
