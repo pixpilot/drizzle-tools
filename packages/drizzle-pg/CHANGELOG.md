@@ -1,5 +1,11 @@
 # @pixpilot/drizzle-pg
 
+## 0.1.2
+
+### Patch Changes
+
+- 1f37956: fixed ci release
+
 ## 0.1.1
 
 ### Patch Changes
