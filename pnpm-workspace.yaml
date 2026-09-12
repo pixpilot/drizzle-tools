@@ -4,6 +4,8 @@ packages:
 
 catalogs:
   prod:
+    '@electric-sql/pglite': ^0.5.8
+    'drizzle-kit': ^0.31.10
     'drizzle-orm': ^0.45.2
   dev:
     '@pixpilot/dev-config': ^3.20.0
