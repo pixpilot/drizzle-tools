@@ -59,6 +59,18 @@ export interface DecimalFieldConfig extends BaseFieldConfig {
 
 export type GeneratedConstraints = (IndexBuilder | CheckBuilder)[];
 
+/**
+ * Renders a value as a single-quoted SQL string literal.
+ *
+ * Config values reach the generated SQL through `sql.raw`, so an embedded
+ * apostrophe would close the literal early and produce a syntax error — or
+ * worse, let a config value change the meaning of the constraint. Doubling
+ * the quotes is what Postgres expects and keeps the value inert.
+ */
+function quoteSqlLiteral(value: string): string {
+  return `'${value.replaceAll("'", "''")}'`;
+}
+
 // For the main function, accept any config type but validate at runtime
 type AnyFieldConfig =
   | StringFieldConfig
@@ -81,7 +93,9 @@ type ConfigForColumn<_T extends AnyPgColumn> = AnyFieldConfig;
 export function generateTableConstraints<TTable extends Record<string, AnyPgColumn>>(
   table: TTable,
   fieldsConfig: {
-    [K in keyof TTable]?: ConfigForColumn<TTable[K]>;
+    // Explicit `undefined` is allowed so a caller can write
+    // `{ slug: isPublic ? slugConfig : undefined }` — the loop below skips it.
+    [K in keyof TTable]?: ConfigForColumn<TTable[K]> | undefined;
   },
 ): GeneratedConstraints {
   const constraints: GeneratedConstraints = [];
@@ -218,21 +232,21 @@ export function generateTableConstraints<TTable extends Record<string, AnyPgColu
         constraints.push(
           check(
             `${tableName}_${columnName}_date_range_check`,
-            sql`${column} IS NULL OR (${column} >= ${sql.raw(`'${config.minDate}'`)}::date AND ${column} <= ${sql.raw(`'${config.maxDate}'`)}::date)`,
+            sql`${column} IS NULL OR (${column} >= ${sql.raw(quoteSqlLiteral(config.minDate))}::date AND ${column} <= ${sql.raw(quoteSqlLiteral(config.maxDate))}::date)`,
           ),
         );
       } else if (config.minDate !== undefined) {
         constraints.push(
           check(
             `${tableName}_${columnName}_min_date_check`,
-            sql`${column} IS NULL OR ${column} >= ${sql.raw(`'${config.minDate}'`)}::date`,
+            sql`${column} IS NULL OR ${column} >= ${sql.raw(quoteSqlLiteral(config.minDate))}::date`,
           ),
         );
       } else if (config.maxDate !== undefined) {
         constraints.push(
           check(
             `${tableName}_${columnName}_max_date_check`,
-            sql`${column} IS NULL OR ${column} <= ${sql.raw(`'${config.maxDate}'`)}::date`,
+            sql`${column} IS NULL OR ${column} <= ${sql.raw(quoteSqlLiteral(config.maxDate))}::date`,
           ),
         );
       }
@@ -247,14 +261,14 @@ export function generateTableConstraints<TTable extends Record<string, AnyPgColu
       constraints.push(
         check(
           `${tableName}_${columnName}_email_check`,
-          sql`${column} IS NULL OR ${column} ~* ${sql.raw(`'${emailRegex}'`)}`,
+          sql`${column} IS NULL OR ${column} ~* ${sql.raw(quoteSqlLiteral(emailRegex))}`,
         ),
       );
     }
 
     // Enum constraints - apply to enum config
     if (isEnumConfig && config.allowedValues && config.allowedValues.length > 0) {
-      const valuesList = config.allowedValues.map((val) => `'${val}'`).join(', ');
+      const valuesList = config.allowedValues.map(quoteSqlLiteral).join(', ');
       constraints.push(
         check(
           `${tableName}_${columnName}_enum_check`,
