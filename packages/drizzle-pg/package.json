@@ -1,7 +1,7 @@
 {
   "name": "@pixpilot/drizzle-pg",
   "type": "module",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "packageManager": "pnpm@10.17.0",
   "description": "PostgreSQL adapter utilities for Drizzle ORM  ",
   "author": "Mo Doaie <m.doaie@hotmail.com>",
