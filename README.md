@@ -37,7 +37,7 @@ pnpm run gen:package
 
 ### [drizzle-migrations](./packages/drizzle-migrations/README.md)
 
-Reusable PostgreSQL migration CLI, journal validation, and custom SQL syncing.
+Reusable Drizzle PostgreSQL migration CLI and utilities
 
 ### [drizzle-pg](./packages/drizzle-pg/README.md)
 
