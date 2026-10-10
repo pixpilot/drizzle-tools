@@ -11,7 +11,7 @@ catalogs:
     'drizzle-orm': ^0.45.2
   dev:
     '@pixpilot/dev-config': ^3.22.0
-    '@types/node': ^26.5.1
+    '@types/node': ^26.6.4
     '@vitest/coverage-v8': ^5.0.0
     '@vitest/ui': ^5.0.0
     eslint: ^10.10.0
