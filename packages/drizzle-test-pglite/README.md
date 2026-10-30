@@ -75,7 +75,8 @@ it('inserts a user', async () => {
 
 1. **Template build (once per cache key).** A fresh PGlite instance is created,
    `beforePush` runs, `drizzle-kit`'s `pushSchema` generates the DDL for your
-   schema, and each statement is executed. The data directory is then dumped to
+   schema, and each statement is executed (or, with `migrationsFolder`, the
+   migrations are applied). The data directory is then dumped to
    `<cache.directory>/<cache.key>-<hash>.bin`.
 2. **Cache key.** `<hash>` is the first 16 hex characters of a SHA-256 over the
    path and contents of every file under `cache.watchedPaths`, walked
@@ -98,19 +99,54 @@ crashed build never leaves a partial cache entry.
 Returns `{ createTestDb }`. Call `createTestDb()` to check out the worker's
 database; call `db.$client.close()` to release it.
 
-| Option                   | Type                                      | Default                       | Description                                                                                                   |
-| ------------------------ | ----------------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `schema`                 | `Record<string, unknown>`                 | —                             | Your Drizzle schema module (`import * as schema`).                                                            |
-| `cache.directory`        | `string`                                  | —                             | Where snapshots are written. Created if missing; should be gitignored.                                        |
-| `cache.key`              | `string`                                  | —                             | Filename prefix. Use distinct keys for distinct schemas sharing a directory.                                  |
-| `cache.watchedPaths`     | `readonly string[]`                       | —                             | Files and directories whose contents invalidate the snapshot. Must exist; relative paths resolve against cwd. |
-| `pushSchemas`            | `readonly string[]`                       | `['public']`                  | Postgres schemas passed to `pushSchema` as schema filters.                                                    |
-| `resetSchemas`           | `readonly string[]`                       | `['public']`                  | Schemas whose tables are truncated between checkouts.                                                         |
-| `resetTables`            | `readonly string[]`                       | `[]`                          | Extra qualified table names (`"auth.users"`) to truncate, for tables outside `resetSchemas`.                  |
-| `beforePush`             | `(client: PGlite) => Promise<void>`       | —                             | Runs against the template before the schema push — create extensions, roles, or non-public schemas here.      |
-| `shouldExecuteStatement` | `(statement: string) => boolean`          | —                             | Return `false` to skip a generated DDL statement. Every statement runs by default.                            |
-| `checkoutErrorMessage`   | `string`                                  | built-in message              | Overrides the error thrown when a database is already checked out.                                            |
-| `createDb`               | `(client: PGlite, schema: Schema) => TDb` | `drizzle(client, { schema })` | Build the Drizzle client yourself — for a custom logger, casing, or relational config.                        |
+| Option                   | Type                                              | Default                       | Description                                                                                                            |
+| ------------------------ | ------------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `schema`                 | `Record<string, unknown>`                         | —                             | Your Drizzle schema module (`import * as schema`).                                                                     |
+| `cache.directory`        | `string`                                          | —                             | Where snapshots are written. Created if missing; should be gitignored.                                                 |
+| `cache.key`              | `string`                                          | —                             | Filename prefix. Use distinct keys for distinct schemas sharing a directory.                                           |
+| `cache.watchedPaths`     | `readonly string[]`                               | —                             | Files and directories whose contents invalidate the snapshot. Must exist; relative paths resolve against cwd.          |
+| `pgliteOptions`          | `Omit<PGliteOptions, 'dataDir' \| 'loadDataDir'>` | —                             | Passed to every PGlite instance (template and worker), e.g. `{ extensions: { vector } }`.                              |
+| `migrationsFolder`       | `string`                                          | —                             | Build the template by applying these Drizzle migrations instead of pushing `schema`. Add the folder to `watchedPaths`. |
+| `pushSchemas`            | `readonly string[]`                               | `['public']`                  | Postgres schemas passed to `pushSchema` as schema filters.                                                             |
+| `resetSchemas`           | `readonly string[]`                               | `['public']`                  | Schemas whose tables are truncated between checkouts.                                                                  |
+| `resetTables`            | `readonly string[]`                               | `[]`                          | Extra qualified table names (`"auth.users"`) to truncate, for tables outside `resetSchemas`.                           |
+| `beforePush`             | `(client: PGlite) => Promise<void>`               | —                             | Runs against the template before the schema push — create extensions, roles, or non-public schemas here.               |
+| `shouldExecuteStatement` | `(statement: string) => boolean`                  | —                             | Return `false` to skip a generated DDL statement. Every statement runs by default.                                     |
+| `checkoutErrorMessage`   | `string`                                          | built-in message              | Overrides the error thrown when a database is already checked out.                                                     |
+| `createDb`               | `(client: PGlite, schema: Schema) => TDb`         | `drizzle(client, { schema })` | Build the Drizzle client yourself — for a custom logger, casing, or relational config.                                 |
+
+### Extensions
+
+Load the extension in every PGlite instance with `pgliteOptions`, then create it
+in the template:
+
+```ts
+import { vector } from '@electric-sql/pglite-pgvector';
+
+createPostgresqlTestDb<PgliteDatabase<typeof schema>>({
+  schema,
+  pgliteOptions: { extensions: { vector } },
+  beforePush: async (client) => {
+    await client.exec('CREATE EXTENSION IF NOT EXISTS vector;');
+  },
+  cache: { directory: cacheDir, key: 'app', watchedPaths: [schemaDir] },
+});
+```
+
+### From migrations
+
+To test the real migration history (custom SQL, extensions created by a
+migration), pass `migrationsFolder`; `pushSchemas` and `shouldExecuteStatement`
+are then unused:
+
+```ts
+createPostgresqlTestDb<PgliteDatabase<typeof schema>>({
+  schema,
+  migrationsFolder,
+  pgliteOptions: { extensions: { vector } },
+  cache: { directory: cacheDir, key: 'app', watchedPaths: [migrationsFolder] },
+});
+```
 
 ### Non-public schemas
 
@@ -139,7 +175,7 @@ createPostgresqlTestDb<PgliteDatabase<typeof schema>>({
   snapshot's `pg_tables`, so a table a test creates at runtime is not truncated
   afterwards. Create it in `beforePush` instead, or list it in `resetTables`.
 - **Only `watchedPaths` invalidates the cache.** Changing `beforePush`,
-  `shouldExecuteStatement`, or `pushSchemas` will not rebuild the snapshot on
+  `shouldExecuteStatement`, `pushSchemas`, `pgliteOptions` or `migrationsFolder` will not rebuild the snapshot on
   its own — bump `cache.key` or delete the cache directory.
 - **PGlite is not Postgres.** It is a real Postgres build compiled to WASM,
   single-connection and single-user. Extensions must be PGlite builds, and

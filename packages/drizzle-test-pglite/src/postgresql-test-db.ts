@@ -1,5 +1,5 @@
 /* eslint-disable no-await-in-loop */
-import type { PGlite } from '@electric-sql/pglite';
+import type { PGlite, PGliteOptions } from '@electric-sql/pglite';
 
 import { Buffer } from 'node:buffer';
 import { createHash, randomUUID } from 'node:crypto';
@@ -9,9 +9,16 @@ import { resolve } from 'node:path';
 import { PGlite as PGliteClient } from '@electric-sql/pglite';
 import { pushSchema } from 'drizzle-kit/api';
 import { drizzle } from 'drizzle-orm/pglite';
+import { migrate } from 'drizzle-orm/pglite/migrator';
 
 type Schema = Record<string, unknown>;
 type TestDb<TDb> = TDb & { $client: PGlite };
+
+/** PGlite options for the template and worker instances; the data directory is managed here. */
+export type PostgresqlTestDbPgliteOptions = Omit<
+  PGliteOptions,
+  'dataDir' | 'loadDataDir'
+>;
 const schemaHashLength = 16;
 const snapshotWaitAttempts = 300;
 const snapshotWaitMs = 100;
@@ -25,6 +32,10 @@ export interface PostgresqlTestDbCacheOptions {
 export interface PostgresqlTestDbOptions<TDb> {
   schema: Schema;
   cache: PostgresqlTestDbCacheOptions;
+  /** Passed to every PGlite instance, e.g. `{ extensions: { vector } }`. */
+  pgliteOptions?: PostgresqlTestDbPgliteOptions;
+  /** Build the template by applying these Drizzle migrations instead of pushing `schema`. */
+  migrationsFolder?: string;
   pushSchemas?: readonly string[];
   resetSchemas?: readonly string[];
   resetTables?: readonly string[];
@@ -140,19 +151,23 @@ async function withSnapshotBuildLock(
 async function buildTemplateSnapshot<TDb>(
   options: PostgresqlTestDbOptions<TDb>,
 ): Promise<Blob | File> {
-  const client = new PGliteClient();
+  const client = new PGliteClient(options.pgliteOptions);
   await options.beforePush?.(client);
 
   const db = drizzle(client, { schema: options.schema });
-  const { statementsToExecute } = await pushSchema(
-    options.schema,
-    db as unknown as Parameters<typeof pushSchema>[1],
-    [...(options.pushSchemas ?? ['public'])],
-  );
+  if (options.migrationsFolder === undefined) {
+    const { statementsToExecute } = await pushSchema(
+      options.schema,
+      db as unknown as Parameters<typeof pushSchema>[1],
+      [...(options.pushSchemas ?? ['public'])],
+    );
 
-  for (const statement of statementsToExecute) {
-    if (options.shouldExecuteStatement?.(statement) === false) continue;
-    await client.exec(statement);
+    for (const statement of statementsToExecute) {
+      if (options.shouldExecuteStatement?.(statement) === false) continue;
+      await client.exec(statement);
+    }
+  } else {
+    await migrate(db, { migrationsFolder: options.migrationsFolder });
   }
 
   const snapshot = await client.dumpDataDir('none');
@@ -218,7 +233,10 @@ export function createPostgresqlTestDb<TDb>(
 
     workerDbState = (async () => {
       templateSnapshot ??= getTemplateSnapshot(options);
-      const client = new PGliteClient({ loadDataDir: await templateSnapshot });
+      const client = new PGliteClient({
+        ...options.pgliteOptions,
+        loadDataDir: await templateSnapshot,
+      });
       const db = (options.createDb?.(client, options.schema) ??
         drizzle(client, { schema: options.schema })) as TestDb<TDb>;
       db.$client = client;
