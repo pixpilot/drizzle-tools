@@ -1,5 +1,11 @@
 # @pixpilot/drizzle-supabase
 
+## 0.1.3
+
+### Patch Changes
+
+- 3dc388b: fix release
+
 ## 0.1.2
 
 ### Patch Changes

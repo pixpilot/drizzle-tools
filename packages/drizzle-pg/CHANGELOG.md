@@ -1,5 +1,11 @@
 # @pixpilot/drizzle-pg
 
+## 0.2.2
+
+### Patch Changes
+
+- 3dc388b: fix release
+
 ## 0.2.1
 
 ### Patch Changes
