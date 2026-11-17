@@ -52,8 +52,16 @@ interface WorkerDbState<TDb> {
   checkedOut: boolean;
 }
 
-interface PostgresqlTestDbFactory<TDb> {
+export interface PostgresqlTestDbFactory<TDb> {
+  /** Checks out this worker's database, emptied of rows. Release it with `db.$client.close()`. */
   createTestDb: () => Promise<TestDb<TDb>>;
+  /**
+   * Builds the cached template snapshot if it is missing, without starting a
+   * database. Run it from a global setup so workers never build it themselves.
+   */
+  warmTestDb: () => Promise<void>;
+  /** Shuts down this worker's PGlite instance. The next `createTestDb()` starts a new one. */
+  disposeTestDb: () => Promise<void>;
 }
 
 async function sleep(ms: number): Promise<void> {
@@ -228,14 +236,18 @@ export function createPostgresqlTestDb<TDb>(
   let templateSnapshot: Promise<Blob | File> | undefined;
   let workerDbState: Promise<WorkerDbState<TDb>> | undefined;
 
+  async function getTemplate(): Promise<Blob | File> {
+    templateSnapshot ??= getTemplateSnapshot(options);
+    return templateSnapshot;
+  }
+
   async function getWorkerDbState(): Promise<WorkerDbState<TDb>> {
     if (workerDbState) return workerDbState;
 
     workerDbState = (async () => {
-      templateSnapshot ??= getTemplateSnapshot(options);
       const client = new PGliteClient({
         ...options.pgliteOptions,
-        loadDataDir: await templateSnapshot,
+        loadDataDir: await getTemplate(),
       });
       const db = (options.createDb?.(client, options.schema) ??
         drizzle(client, { schema: options.schema })) as TestDb<TDb>;
@@ -270,6 +282,20 @@ export function createPostgresqlTestDb<TDb>(
       };
 
       return state.db;
+    },
+
+    async warmTestDb(): Promise<void> {
+      await getTemplate();
+    },
+
+    async disposeTestDb(): Promise<void> {
+      const pendingState = workerDbState;
+      if (!pendingState) return;
+
+      workerDbState = undefined;
+      const { client } = await pendingState;
+      // `client.close` is replaced by the checkout release, so call the real one.
+      await PGliteClient.prototype.close.call(client);
     },
   };
 }

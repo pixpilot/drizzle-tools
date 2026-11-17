@@ -1,7 +1,7 @@
 import type { PGlite } from '@electric-sql/pglite';
 import type { PgliteDatabase } from 'drizzle-orm/pglite';
 import { randomUUID } from 'node:crypto';
-import { rm } from 'node:fs/promises';
+import { readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -70,5 +70,47 @@ describe.each([
     );
 
     expect(rows).toEqual([{ count: 0 }]);
+  });
+});
+
+describe('warmTestDb and disposeTestDb', () => {
+  const directory = join(cacheDirectory, 'lifecycle');
+
+  function createFactory() {
+    return createPostgresqlTestDb<PgliteDatabase<typeof schema>>({
+      schema,
+      migrationsFolder,
+      pgliteOptions: { extensions: { citext } },
+      cache: { directory, key: 'lifecycle', watchedPaths: [migrationsFolder] },
+    });
+  }
+
+  it('writes the template snapshot without starting a worker database', async () => {
+    await createFactory().warmTestDb();
+
+    const files = await readdir(directory);
+
+    expect(files.filter((file) => file.endsWith('.bin'))).toHaveLength(1);
+  });
+
+  it('shuts the worker database down and starts a fresh one on the next checkout', async () => {
+    const { createTestDb, disposeTestDb } = createFactory();
+    const first = await createTestDb();
+    const firstClient = first.$client;
+
+    await disposeTestDb();
+
+    expect(firstClient.closed).toBe(true);
+
+    const second = await createTestDb();
+
+    expect(second.$client).not.toBe(firstClient);
+    expect(second.$client.closed).toBe(false);
+
+    await disposeTestDb();
+  });
+
+  it('does nothing when no database was checked out', async () => {
+    await expect(createFactory().disposeTestDb()).resolves.toBeUndefined();
   });
 });

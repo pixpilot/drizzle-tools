@@ -96,8 +96,14 @@ crashed build never leaves a partial cache entry.
 
 ### `createPostgresqlTestDb(options)`
 
-Returns `{ createTestDb }`. Call `createTestDb()` to check out the worker's
-database; call `db.$client.close()` to release it.
+Returns `{ createTestDb, warmTestDb, disposeTestDb }`:
+
+- `createTestDb()` checks out the worker's database, emptied of rows; call
+  `db.$client.close()` to release it.
+- `warmTestDb()` builds the cached snapshot if it is missing, without starting a
+  database. See [Warm the cache](#warm-the-cache).
+- `disposeTestDb()` shuts down the worker's PGlite instance; the next
+  `createTestDb()` starts a new one. Use it when the process must exit cleanly.
 
 | Option                   | Type                                              | Default                       | Description                                                                                                            |
 | ------------------------ | ------------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
@@ -114,6 +120,29 @@ database; call `db.$client.close()` to release it.
 | `shouldExecuteStatement` | `(statement: string) => boolean`                  | —                             | Return `false` to skip a generated DDL statement. Every statement runs by default.                                     |
 | `checkoutErrorMessage`   | `string`                                          | built-in message              | Overrides the error thrown when a database is already checked out.                                                     |
 | `createDb`               | `(client: PGlite, schema: Schema) => TDb`         | `drizzle(client, { schema })` | Build the Drizzle client yourself — for a custom logger, casing, or relational config.                                 |
+
+### Warm the cache
+
+On a cold cache (a fresh CI checkout) the first worker to call `createTestDb()`
+builds the snapshot and the rest wait for it, all inside their first
+`beforeEach`, which can outrun the hook timeout. Build it once before any
+worker starts:
+
+```ts
+// test/global-setup.ts
+import { warmTestDb } from './db';
+
+export default warmTestDb;
+```
+
+```ts
+// vitest.config.ts
+export default defineConfig({
+  test: { globalSetup: ['./test/global-setup.ts'] },
+});
+```
+
+Export `warmTestDb` from `test/db.ts` alongside `createTestDb`.
 
 ### Extensions
 
@@ -171,6 +200,7 @@ createPostgresqlTestDb<PgliteDatabase<typeof schema>>({
   run tests inside a file sequentially and let your runner parallelize by file.
 - **`close()` does not close.** It releases the checkout so the next test can
   take the instance; the underlying PGlite process stays alive for the worker.
+  Call `disposeTestDb()` to shut it down.
 - **The truncation list is fixed at load time.** It is derived from the
   snapshot's `pg_tables`, so a table a test creates at runtime is not truncated
   afterwards. Create it in `beforePush` instead, or list it in `resetTables`.
